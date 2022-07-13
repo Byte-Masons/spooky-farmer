@@ -17,7 +17,7 @@ interface IMasterChef {
 
     function devaddr() external view returns (address);
 
-    function emergencyWithdraw(uint256 _pid) external;
+    function emergencyWithdraw(uint256 _pid, address _to) external;
 
     function getMultiplier(uint256 _from, uint256 _to) external view returns (uint256);
 

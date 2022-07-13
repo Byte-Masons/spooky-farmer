@@ -17,7 +17,7 @@ contract ReaperStrategySpookyWftmUnderlying is ReaperBaseStrategyv3 {
 
     // 3rd-party contract addresses
     address public constant SPOOKY_ROUTER = 0xF491e7B69E4244ad4002BC14e878a34207E38c29;
-    address public constant MASTER_CHEF = 0x2b2929E785374c651a81A63878Ab22742656DcDd;
+    address public constant MASTER_CHEF = 0x18b4f774fdC7BF685daeeF66c2990b1dDd9ea6aD;
 
     /**
      * @dev Tokens Used:
@@ -208,6 +208,6 @@ contract ReaperStrategySpookyWftmUnderlying is ReaperBaseStrategyv3 {
      * Withdraws all funds leaving rewards behind.
      */
     function _reclaimWant() internal override {
-        IMasterChef(MASTER_CHEF).emergencyWithdraw(poolId);
+        IMasterChef(MASTER_CHEF).emergencyWithdraw(poolId, address(this));
     }
 }
