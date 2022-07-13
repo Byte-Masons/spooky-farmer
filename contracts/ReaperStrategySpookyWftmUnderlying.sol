@@ -12,12 +12,12 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 /**
  * @dev Deposit SpookySwap LP tokens into MasterChef. Harvest BOO rewards and recompound.
  */
-contract ReaperStrategySpooky is ReaperBaseStrategyv3 {
+contract ReaperStrategySpookyWftmUnderlying is ReaperBaseStrategyv3 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // 3rd-party contract addresses
-    address public constant SPOOKY_ROUTER = address(0xF491e7B69E4244ad4002BC14e878a34207E38c29);
-    address public constant MASTER_CHEF = address(0x2b2929E785374c651a81A63878Ab22742656DcDd);
+    address public constant SPOOKY_ROUTER = 0xF491e7B69E4244ad4002BC14e878a34207E38c29;
+    address public constant MASTER_CHEF = 0x2b2929E785374c651a81A63878Ab22742656DcDd;
 
     /**
      * @dev Tokens Used:
@@ -27,16 +27,19 @@ contract ReaperStrategySpooky is ReaperBaseStrategyv3 {
      * {lpToken0} - First token of the want LP
      * {lpToken1} - Second token of the want LP
      */
-    address public constant WFTM = address(0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83);
-    address public constant BOO = address(0x841FAD6EAe12c286d1Fd18d1d525DFfA75C7EFFE);
+    address public constant WFTM = 0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83;
+    address public constant BOO = 0x841FAD6EAe12c286d1Fd18d1d525DFfA75C7EFFE;
+    address public constant DAI = 0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E;
     address public want;
     address public lpToken0;
     address public lpToken1;
 
     /**
      * @dev Paths used to swap tokens:
+     * {booToDaiPath} - to swap {BOO} to {DAI} (using SPOOKY_ROUTER)
      * {booToWftmPath} - to swap {BOO} to {WFTM} (using SPOOKY_ROUTER)
      */
+    address[] public booToDaiPath;
     address[] public booToWftmPath;
 
     /**
@@ -60,6 +63,7 @@ contract ReaperStrategySpooky is ReaperBaseStrategyv3 {
         __ReaperBaseStrategy_init(_vault, _feeRemitters, _strategists, _multisigRoles);
         want = _want;
         poolId = _poolId;
+        booToDaiPath = [BOO, WFTM, DAI];
         booToWftmPath = [BOO, WFTM];
         lpToken0 = IUniV2Pair(want).token0();
         lpToken1 = IUniV2Pair(want).token1();
@@ -92,26 +96,41 @@ contract ReaperStrategySpooky is ReaperBaseStrategyv3 {
     /**
      * @dev Core function of the strat, in charge of collecting and re-investing rewards.
      *      1. Claims {BOO} from the {MASTER_CHEF}.
-     *      2. Swaps {BOO} to {WFTM}.
-     *      3. Charge fees.
+     *      2. Charge fees.
+     *      3. Swap from BOO
      *      4. Creates new LP tokens.
      *      5. Deposits LP in the Master Chef.
      */
     function _harvestCore() internal override returns (uint256 callerFee) {
-        _claimRewards();
-        _swapToWFTM();
+        IMasterChef(MASTER_CHEF).deposit(poolId, 0); // deposit 0 to claim rewards
         callerFee = _chargeFees();
+        _swapFromBoo();
         _addLiquidity();
         deposit();
     }
 
-    function _claimRewards() internal {
-        IMasterChef(MASTER_CHEF).deposit(poolId, 0); // deposit 0 to claim rewards
-    }
-
-    function _swapToWFTM() internal {
+    /**
+     * @dev Core harvest function.
+     *      Charges fees based on the amount of BOO gained from reward
+     */
+    function _chargeFees() internal returns (uint256 callerFee) {
         IERC20Upgradeable boo = IERC20Upgradeable(BOO);
-        _swap((boo.balanceOf(address(this))), booToWftmPath);
+        uint256 booFee = (boo.balanceOf(address(this)) * totalFee) / PERCENT_DIVISOR;
+        if (booFee != 0) {
+            IERC20Upgradeable dai = IERC20Upgradeable(DAI);
+            uint256 daiBalBefore = dai.balanceOf(address(this));
+            _swap(booFee, booToDaiPath);
+            uint256 daiFee = dai.balanceOf(address(this)) - daiBalBefore;
+
+            callerFee = (daiFee * callFee) / PERCENT_DIVISOR;
+            uint256 treasuryFeeToVault = (daiFee * treasuryFee) / PERCENT_DIVISOR;
+            uint256 feeToStrategist = (treasuryFeeToVault * strategistFee) / PERCENT_DIVISOR;
+            treasuryFeeToVault -= feeToStrategist;
+
+            dai.safeTransfer(msg.sender, callerFee);
+            dai.safeTransfer(treasury, treasuryFeeToVault);
+            dai.safeTransfer(strategistRemitter, feeToStrategist);
+        }
     }
 
     /**
@@ -132,22 +151,24 @@ contract ReaperStrategySpooky is ReaperBaseStrategyv3 {
         );
     }
 
-    /**
-     * @dev Core harvest function.
-     *      Charges fees based on the amount of WFTM gained from reward
-     */
-    function _chargeFees() internal returns (uint256 callerFee) {
-        IERC20Upgradeable wftm = IERC20Upgradeable(WFTM);
-        uint256 wftmFee = (wftm.balanceOf(address(this)) * totalFee) / PERCENT_DIVISOR;
-        if (wftmFee != 0) {
-            callerFee = (wftmFee * callFee) / PERCENT_DIVISOR;
-            uint256 treasuryFeeToVault = (wftmFee * treasuryFee) / PERCENT_DIVISOR;
-            uint256 feeToStrategist = (treasuryFeeToVault * strategistFee) / PERCENT_DIVISOR;
-            treasuryFeeToVault -= feeToStrategist;
-
-            wftm.safeTransfer(msg.sender, callerFee);
-            wftm.safeTransfer(treasury, treasuryFeeToVault);
-            wftm.safeTransfer(strategistRemitter, feeToStrategist);
+    function _swapFromBoo() internal {
+        if (lpToken0 == BOO || lpToken1 == BOO) {
+            // FTM-BOO LP
+            _swap(IERC20Upgradeable(BOO).balanceOf(address(this)) / 2, booToWftmPath);
+        } else {
+            // FTM-X LP, where X != BOO
+            _swap(IERC20Upgradeable(BOO).balanceOf(address(this)), booToWftmPath);
+            if (lpToken0 == WFTM) {
+                address[] memory wftmToLP1 = new address[](2);
+                wftmToLP1[0] = WFTM;
+                wftmToLP1[1] = lpToken1;
+                _swap(IERC20Upgradeable(lpToken0).balanceOf(address(this)) / 2, wftmToLP1);
+            } else {
+                address[] memory wftmToLP0 = new address[](2);
+                wftmToLP0[0] = WFTM;
+                wftmToLP0[1] = lpToken0;
+                _swap(IERC20Upgradeable(lpToken1).balanceOf(address(this)) / 2, wftmToLP0);
+            }
         }
     }
 
@@ -157,21 +178,6 @@ contract ReaperStrategySpooky is ReaperBaseStrategyv3 {
     function _addLiquidity() internal {
         uint256 lp0Bal = IERC20Upgradeable(lpToken0).balanceOf(address(this));
         uint256 lp1Bal = IERC20Upgradeable(lpToken1).balanceOf(address(this));
-
-        if (lpToken0 == WFTM) {
-            address[] memory wftmToLP1 = new address[](2);
-            wftmToLP1[0] = WFTM;
-            wftmToLP1[1] = lpToken1;
-            _swap(lp0Bal / 2, wftmToLP1);
-        } else {
-            address[] memory wftmToLP0 = new address[](2);
-            wftmToLP0[0] = WFTM;
-            wftmToLP0[1] = lpToken0;
-            _swap(lp1Bal / 2, wftmToLP0);
-        }
-
-        lp0Bal = IERC20Upgradeable(lpToken0).balanceOf(address(this));
-        lp1Bal = IERC20Upgradeable(lpToken1).balanceOf(address(this));
 
         if (lp0Bal != 0 && lp1Bal != 0) {
             IERC20Upgradeable(lpToken0).safeIncreaseAllowance(SPOOKY_ROUTER, lp0Bal);
