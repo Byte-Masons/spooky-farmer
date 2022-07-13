@@ -44,7 +44,7 @@ describe('Vaults', function () {
   
   const usdcAddress = '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75';
   const wantAddress = '0x2b4C76d0dc16BE1C31D4C1DC53bF9B45987Fc75c';
-  const wantHolderAddr = '0x7495f066Bb8a0f71908DeB8d4EFe39556f13f58A';
+  const wantHolderAddr = '0x7495f066bb8a0f71908deb8d4efe39556f13f58a';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
   let owner;
@@ -59,7 +59,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpc.ankr.com/fantom',
-            blockNumber: 42668387,
+            blockNumber: 42700521,
           },
         },
       ],
@@ -82,7 +82,7 @@ describe('Vaults', function () {
     Vault = await ethers.getContractFactory('ReaperVaultv1_4');
     Strategy = await ethers.getContractFactory('ReaperStrategySpookyUsdcUnderlying');
     Want = await ethers.getContractFactory('@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20');
-    const poolId = 2;
+    const poolId = 10;
 
     //deploy contracts
     vault = await Vault.deploy(wantAddress, 'TOMB-MAI Tomb Crypt', 'rf-TOMB-MAI', 0, ethers.constants.MaxUint256);
