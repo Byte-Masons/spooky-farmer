@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./abstract/ReaperBaseStrategyv1_1.sol";
+import "./abstract/ReaperBaseStrategyv3.sol";
 import "./interfaces/IMasterChef.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IUniV2Pair.sol";
@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 /**
  * @dev Deposit SpookySwap LP tokens into MasterChef. Harvest BOO rewards and recompound.
  */
-contract ReaperStrategySpooky is ReaperBaseStrategyv1_1 {
+contract ReaperStrategySpooky is ReaperBaseStrategyv3 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // 3rd-party contract addresses
@@ -53,10 +53,11 @@ contract ReaperStrategySpooky is ReaperBaseStrategyv1_1 {
         address _vault,
         address[] memory _feeRemitters,
         address[] memory _strategists,
+        address[] memory _multisigRoles,
         address _want,
         uint256 _poolId
     ) public initializer {
-        __ReaperBaseStrategy_init(_vault, _feeRemitters, _strategists);
+        __ReaperBaseStrategy_init(_vault, _feeRemitters, _strategists, _multisigRoles);
         want = _want;
         poolId = _poolId;
         booToWftmPath = [BOO, WFTM];
@@ -96,10 +97,10 @@ contract ReaperStrategySpooky is ReaperBaseStrategyv1_1 {
      *      4. Creates new LP tokens.
      *      5. Deposits LP in the Master Chef.
      */
-    function _harvestCore() internal override {
+    function _harvestCore() internal override returns (uint256 callerFee) {
         _claimRewards();
         _swapToWFTM();
-        _chargeFees();
+        callerFee = _chargeFees();
         _addLiquidity();
         deposit();
     }
@@ -135,16 +136,16 @@ contract ReaperStrategySpooky is ReaperBaseStrategyv1_1 {
      * @dev Core harvest function.
      *      Charges fees based on the amount of WFTM gained from reward
      */
-    function _chargeFees() internal {
+    function _chargeFees() internal returns (uint256 callerFee) {
         IERC20Upgradeable wftm = IERC20Upgradeable(WFTM);
         uint256 wftmFee = (wftm.balanceOf(address(this)) * totalFee) / PERCENT_DIVISOR;
         if (wftmFee != 0) {
-            uint256 callFeeToUser = (wftmFee * callFee) / PERCENT_DIVISOR;
+            callerFee = (wftmFee * callFee) / PERCENT_DIVISOR;
             uint256 treasuryFeeToVault = (wftmFee * treasuryFee) / PERCENT_DIVISOR;
             uint256 feeToStrategist = (treasuryFeeToVault * strategistFee) / PERCENT_DIVISOR;
             treasuryFeeToVault -= feeToStrategist;
 
-            wftm.safeTransfer(msg.sender, callFeeToUser);
+            wftm.safeTransfer(msg.sender, callerFee);
             wftm.safeTransfer(treasury, treasuryFeeToVault);
             wftm.safeTransfer(strategistRemitter, feeToStrategist);
         }
@@ -195,46 +196,6 @@ contract ReaperStrategySpooky is ReaperBaseStrategyv1_1 {
     function balanceOf() public view override returns (uint256) {
         (uint256 amount, ) = IMasterChef(MASTER_CHEF).userInfo(poolId, address(this));
         return amount + IERC20Upgradeable(want).balanceOf(address(this));
-    }
-
-    /**
-     * @dev Returns the approx amount of profit from harvesting.
-     *      Profit is denominated in WFTM, and takes fees into account.
-     */
-    function estimateHarvest() external view override returns (uint256 profit, uint256 callFeeToUser) {
-        uint256 pendingReward = IMasterChef(MASTER_CHEF).pendingBOO(poolId, address(this));
-        uint256 totalRewards = pendingReward + IERC20Upgradeable(BOO).balanceOf(address(this));
-
-        if (totalRewards != 0) {
-            profit += IUniswapV2Router02(SPOOKY_ROUTER).getAmountsOut(totalRewards, booToWftmPath)[1];
-        }
-
-        profit += IERC20Upgradeable(WFTM).balanceOf(address(this));
-
-        uint256 wftmFee = (profit * totalFee) / PERCENT_DIVISOR;
-        callFeeToUser = (wftmFee * callFee) / PERCENT_DIVISOR;
-        profit -= wftmFee;
-    }
-
-    /**
-     * @dev Function to retire the strategy. Claims all rewards and withdraws
-     *      all principal from external contracts, and sends everything back to
-     *      the vault. Can only be called by strategist or owner.
-     *
-     * Note: this is not an emergency withdraw function. For that, see panic().
-     */
-    function _retireStrat() internal override {
-        IMasterChef(MASTER_CHEF).deposit(poolId, 0); // deposit 0 to claim rewards
-
-        _swapToWFTM();
-
-        _addLiquidity();
-
-        (uint256 poolBal, ) = IMasterChef(MASTER_CHEF).userInfo(poolId, address(this));
-        IMasterChef(MASTER_CHEF).withdraw(poolId, poolBal);
-
-        uint256 wantBalance = IERC20Upgradeable(want).balanceOf(address(this));
-        IERC20Upgradeable(want).safeTransfer(vault, wantBalance);
     }
 
     /**
