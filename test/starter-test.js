@@ -33,7 +33,7 @@ describe('Vaults', function () {
 
   let Want;
   let want;
-  let dai;
+  let usdc;
 
   const treasuryAddr = '0x0e7c5313E9BB80b654734d9b7aB1FB01468deE3b';
   const paymentSplitterAddress = '0x63cbd4134c2253041F370472c130e92daE4Ff174';
@@ -42,9 +42,9 @@ describe('Vaults', function () {
   const adminAddress = '0x539eF36C804e4D735d8cAb69e8e441c12d4B88E0';
   const guardianAddress = '0xf20E25f2AB644C8ecBFc992a6829478a85A98F2c';
   
-  const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
-  const wantAddress = '0xC9FB686f14bDA7e2653cF8F605Dc8551B6a53FD3';
-  const wantHolderAddr = '0xe0c15e9fe90d56472d8a43da5d3ef34ae955583c';
+  const usdcAddress = '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75';
+  const wantAddress = '0x2b4C76d0dc16BE1C31D4C1DC53bF9B45987Fc75c';
+  const wantHolderAddr = '0x7495f066Bb8a0f71908DeB8d4EFe39556f13f58A';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
   let owner;
@@ -59,7 +59,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpc.ankr.com/fantom',
-            blockNumber: 35529021,
+            blockNumber: 42668387,
           },
         },
       ],
@@ -80,9 +80,9 @@ describe('Vaults', function () {
 
     //get artifacts
     Vault = await ethers.getContractFactory('ReaperVaultv1_4');
-    Strategy = await ethers.getContractFactory('ReaperStrategySpookyWftmUnderlying');
+    Strategy = await ethers.getContractFactory('ReaperStrategySpookyUsdcUnderlying');
     Want = await ethers.getContractFactory('@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20');
-    const poolId = 70;
+    const poolId = 2;
 
     //deploy contracts
     vault = await Vault.deploy(wantAddress, 'TOMB-MAI Tomb Crypt', 'rf-TOMB-MAI', 0, ethers.constants.MaxUint256);
@@ -101,7 +101,7 @@ describe('Vaults', function () {
     await strategy.deployed();
     await vault.initialize(strategy.address);
     want = await Want.attach(wantAddress);
-    dai = await Want.attach(daiAddress);
+    usdc = await Want.attach(usdcAddress);
 
     //approving LP token and vault share spend
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
@@ -203,11 +203,11 @@ describe('Vaults', function () {
       const predictedCallerFee = await readOnlyStrat.callStatic.harvest();
       console.log(`predicted caller fee ${ethers.utils.formatEther(predictedCallerFee)}`);
 
-      const daiBalBefore = await dai.balanceOf(owner.address);
+      const usdcBalBefore = await usdc.balanceOf(owner.address);
       await strategy.harvest();
-      const daiBalAfter = await dai.balanceOf(owner.address);
-      const daiBalDifference = daiBalAfter.sub(daiBalBefore);
-      console.log(`actual caller fee ${ethers.utils.formatEther(daiBalDifference)}`);
+      const usdcBalAfter = await usdc.balanceOf(owner.address);
+      const usdcBalDifference = usdcBalAfter.sub(usdcBalBefore);
+      console.log(`actual caller fee ${ethers.utils.formatEther(usdcBalDifference)}`);
     });
 
     it('should provide yield', async function () {
