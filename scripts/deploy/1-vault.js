@@ -1,9 +1,9 @@
 async function main() {
   const Vault = await ethers.getContractFactory('ReaperVaultv1_4');
 
-  const wantAddress = '0xC9FB686f14bDA7e2653cF8F605Dc8551B6a53FD3';
-  const tokenName = 'FTM-APE Spooky Crypt';
-  const tokenSymbol = 'rf-FTM-APE';
+  const wantAddress = '0xf84E313B36E86315af7a06ff26C8b20e9EB443C3';
+  const tokenName = 'FTM-SUSHI SpookyV2 Crypt';
+  const tokenSymbol = 'rf-FTM-SUSHI-V2';
   const depositFee = 0;
   const tvlCap = ethers.constants.MaxUint256;
 
