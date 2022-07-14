@@ -2,15 +2,15 @@
   "manifestVersion": "3.2",
   "proxies": [
     {
-      "address": "0x4857331d1d7FFf5d88eEE2e53866135C6882809b",
-      "txHash": "0xa28aa5124fad22f156ec725685fc8286193b3364ecc47a8f285da29fda849181",
+      "address": "0xC706d0851b6534F946466cCD8279e62F15C46a73",
+      "txHash": "0x9b73973281c365bbf2425ad548d36f497f62f7ce647413279455ce75b7dc2f90",
       "kind": "uups"
     }
   ],
   "impls": {
-    "f86bb68c4c60be38ff9274b5804fd183cf8a2c6f7005c4dc522390c3ea36a727": {
-      "address": "0xFE5854F2a69D9D012E2B46425298E2749F898751",
-      "txHash": "0xec2a02a0878474a092b7b69a860c5bcd69c662bcd41acb7ebd642910fcac9da5",
+    "871bf2d13203268ad532cbf0c22c73898750e5bd071f746eb49927502812c703": {
+      "address": "0x36eC131301f1bc75Fc4e5227C03CeA10907C8c29",
+      "txHash": "0x7e216d7302b56c4365541e6ed812c1b07c89d997f3a5f0df0ff2b6cf4fa2b0b9",
       "layout": {
         "storage": [
           {
@@ -88,7 +88,7 @@
           {
             "contract": "ReaperBaseStrategyv3",
             "label": "harvestLog",
-            "type": "t_array(t_struct(Harvest)5980_storage)dyn_storage",
+            "type": "t_array(t_struct(Harvest)5880_storage)dyn_storage",
             "src": "contracts/abstract/ReaperBaseStrategyv3.sol:27"
           },
           {
@@ -167,37 +167,37 @@
             "contract": "ReaperStrategySpookyBTC_ETH",
             "label": "want",
             "type": "t_address",
-            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:33"
+            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:34"
           },
           {
             "contract": "ReaperStrategySpookyBTC_ETH",
             "label": "lpToken0",
             "type": "t_address",
-            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:34"
+            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:35"
           },
           {
             "contract": "ReaperStrategySpookyBTC_ETH",
             "label": "lpToken1",
             "type": "t_address",
-            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:35"
+            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:36"
           },
           {
             "contract": "ReaperStrategySpookyBTC_ETH",
             "label": "booToDaiPath",
             "type": "t_array(t_address)dyn_storage",
-            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:42"
+            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:43"
           },
           {
             "contract": "ReaperStrategySpookyBTC_ETH",
-            "label": "booToWftmPath",
+            "label": "booToWethPath",
             "type": "t_array(t_address)dyn_storage",
-            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:43"
+            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:44"
           },
           {
             "contract": "ReaperStrategySpookyBTC_ETH",
             "label": "poolId",
             "type": "t_uint256",
-            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:49"
+            "src": "contracts/ReaperStrategySpookyBTC_ETH.sol:50"
           }
         ],
         "types": {
@@ -210,10 +210,10 @@
           "t_uint256": {
             "label": "uint256"
           },
-          "t_array(t_struct(Harvest)5980_storage)dyn_storage": {
+          "t_array(t_struct(Harvest)5880_storage)dyn_storage": {
             "label": "struct ReaperBaseStrategyv3.Harvest[]"
           },
-          "t_struct(Harvest)5980_storage": {
+          "t_struct(Harvest)5880_storage": {
             "label": "struct ReaperBaseStrategyv3.Harvest",
             "members": [
               {

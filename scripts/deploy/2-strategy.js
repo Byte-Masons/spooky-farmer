@@ -1,7 +1,7 @@
 const hre = require('hardhat');
 
 async function main() {
-  const vaultAddress = '0x23D5b28B7C46798DeAE10E5ffB7e808B3464e02A';
+  const vaultAddress = '0x1789FF5d356F3961f710ffE93f548AcdF90388b6';
 
   const Strategy = await ethers.getContractFactory('ReaperStrategySpookyBTC_ETH');
   const treasuryAddress = '0x0e7c5313E9BB80b654734d9b7aB1FB01468deE3b';
@@ -12,8 +12,8 @@ async function main() {
   const superAdmin = '0x04C710a1E8a738CDf7cAD3a52Ba77A784C35d8CE';
   const admin = '0x539eF36C804e4D735d8cAb69e8e441c12d4B88E0';
   const guardian = '0xf20E25f2AB644C8ecBFc992a6829478a85A98F2c';
-  const wantAddress = '0xEc454EdA10accdD66209C57aF8C12924556F3aBD';
-  const poolId = 25;
+  const wantAddress = '0x0845c0bFe75691B1e21b24351aAc581a7FB6b7Df';
+  const poolId = 21;
 
   const strategy = await hre.upgrades.deployProxy(
     Strategy,

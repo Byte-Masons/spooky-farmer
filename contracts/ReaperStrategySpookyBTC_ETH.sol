@@ -28,6 +28,7 @@ contract ReaperStrategySpookyBTC_ETH is ReaperBaseStrategyv3 {
      * {lpToken1} - Second token of the want LP
      */
     address public constant WFTM = 0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83;
+    address public constant WETH = 0x74b23882a30290451A17c44f4F05243b6b58C76d;
     address public constant BOO = 0x841FAD6EAe12c286d1Fd18d1d525DFfA75C7EFFE;
     address public constant DAI = 0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E;
     address public want;
@@ -40,7 +41,7 @@ contract ReaperStrategySpookyBTC_ETH is ReaperBaseStrategyv3 {
      * {booToWftmPath} - to swap {BOO} to {WFTM} (using SPOOKY_ROUTER)
      */
     address[] public booToDaiPath;
-    address[] public booToWftmPath;
+    address[] public booToWethPath;
 
     /**
      * @dev Spooky variables.
@@ -64,7 +65,7 @@ contract ReaperStrategySpookyBTC_ETH is ReaperBaseStrategyv3 {
         want = _want;
         poolId = _poolId;
         booToDaiPath = [BOO, WFTM, DAI];
-        booToWftmPath = [BOO, WFTM];
+        booToWethPath = [BOO, WFTM, WETH];
         lpToken0 = IUniV2Pair(want).token0();
         lpToken1 = IUniV2Pair(want).token1();
     }
@@ -152,35 +153,17 @@ contract ReaperStrategySpookyBTC_ETH is ReaperBaseStrategyv3 {
     }
 
     function _swapFromBoo() internal {
-        if (lpToken0 == BOO || lpToken1 == BOO) {
-            // FTM-BOO LP
-            _swap(IERC20Upgradeable(BOO).balanceOf(address(this)) / 2, booToWftmPath);
+        _swap(IERC20Upgradeable(BOO).balanceOf(address(this)), booToWethPath);
+        if (lpToken0 == WETH) {
+            address[] memory wethToLP1 = new address[](2);
+            wethToLP1[0] = WETH;
+            wethToLP1[1] = lpToken1;
+            _swap(IERC20Upgradeable(lpToken0).balanceOf(address(this)) / 2, wethToLP1);
         } else {
-            _swap(IERC20Upgradeable(BOO).balanceOf(address(this)), booToWftmPath);
-            if (lpToken0 == WFTM) {
-                // FTM-X LP, where X != BOO
-                address[] memory wftmToLP1 = new address[](2);
-                wftmToLP1[0] = WFTM;
-                wftmToLP1[1] = lpToken1;
-                _swap(IERC20Upgradeable(lpToken0).balanceOf(address(this)) / 2, wftmToLP1);
-            } else if (lpToken1 == WFTM) {
-                // X-FTM LP, where X != BOO
-                address[] memory wftmToLP0 = new address[](2);
-                wftmToLP0[0] = WFTM;
-                wftmToLP0[1] = lpToken0;
-                _swap(IERC20Upgradeable(lpToken1).balanceOf(address(this)) / 2, wftmToLP0);
-            } else {
-                // X-Y LP, where neither X nor Y is FTM or BOO, but both X and Y have FTM liquidity
-                address[] memory wftmToLP0 = new address[](2);
-                wftmToLP0[0] = WFTM;
-                wftmToLP0[1] = lpToken0;
-                _swap(IERC20Upgradeable(WFTM).balanceOf(address(this)) / 2, wftmToLP0);
-
-                address[] memory wftmToLP1 = new address[](2);
-                wftmToLP1[0] = WFTM;
-                wftmToLP1[1] = lpToken1;
-                _swap(IERC20Upgradeable(WFTM).balanceOf(address(this)), wftmToLP1);
-            }
+            address[] memory wethToLP0 = new address[](2);
+            wethToLP0[0] = WETH;
+            wethToLP0[1] = lpToken0;
+            _swap(IERC20Upgradeable(lpToken1).balanceOf(address(this)) / 2, wethToLP0);
         }
     }
 

@@ -1,9 +1,9 @@
 async function main() {
   const Vault = await ethers.getContractFactory('ReaperVaultv1_4');
 
-  const wantAddress = '0xEc454EdA10accdD66209C57aF8C12924556F3aBD';
-  const tokenName = 'BTC-ETH SpookyV2 Crypt';
-  const tokenSymbol = 'rf-BTC-ETH-V2';
+  const wantAddress = '0x0845c0bFe75691B1e21b24351aAc581a7FB6b7Df';
+  const tokenName = 'ETH-YFI SpookyV2 Crypt';
+  const tokenSymbol = 'rf-ETH-YFI-V2';
   const depositFee = 0;
   const tvlCap = ethers.constants.MaxUint256;
 
