@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 /**
  * @dev Deposit SpookySwap LP tokens into MasterChef. Harvest BOO rewards and recompound.
  */
-contract ReaperStrategySpookyWftmUnderlying is ReaperBaseStrategyv3 {
+contract ReaperStrategySpookyBTC_ETH is ReaperBaseStrategyv3 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // 3rd-party contract addresses
@@ -156,18 +156,30 @@ contract ReaperStrategySpookyWftmUnderlying is ReaperBaseStrategyv3 {
             // FTM-BOO LP
             _swap(IERC20Upgradeable(BOO).balanceOf(address(this)) / 2, booToWftmPath);
         } else {
-            // FTM-X LP, where X != BOO
             _swap(IERC20Upgradeable(BOO).balanceOf(address(this)), booToWftmPath);
             if (lpToken0 == WFTM) {
+                // FTM-X LP, where X != BOO
                 address[] memory wftmToLP1 = new address[](2);
                 wftmToLP1[0] = WFTM;
                 wftmToLP1[1] = lpToken1;
                 _swap(IERC20Upgradeable(lpToken0).balanceOf(address(this)) / 2, wftmToLP1);
-            } else {
+            } else if (lpToken1 == WFTM) {
+                // X-FTM LP, where X != BOO
                 address[] memory wftmToLP0 = new address[](2);
                 wftmToLP0[0] = WFTM;
                 wftmToLP0[1] = lpToken0;
                 _swap(IERC20Upgradeable(lpToken1).balanceOf(address(this)) / 2, wftmToLP0);
+            } else {
+                // X-Y LP, where neither X nor Y is FTM or BOO, but both X and Y have FTM liquidity
+                address[] memory wftmToLP0 = new address[](2);
+                wftmToLP0[0] = WFTM;
+                wftmToLP0[1] = lpToken0;
+                _swap(IERC20Upgradeable(WFTM).balanceOf(address(this)) / 2, wftmToLP0);
+
+                address[] memory wftmToLP1 = new address[](2);
+                wftmToLP1[0] = WFTM;
+                wftmToLP1[1] = lpToken1;
+                _swap(IERC20Upgradeable(WFTM).balanceOf(address(this)), wftmToLP1);
             }
         }
     }
