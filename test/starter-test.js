@@ -43,7 +43,7 @@ describe('Vaults', function () {
   const guardianAddress = '0xf20E25f2AB644C8ecBFc992a6829478a85A98F2c';
   
   const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
-  const wantAddress = '0xEc7178F4C41f346b2721907F5cF7628E388A7a58';
+  const wantAddress = '0x9ba499753Ea5407D5578718A8D37453ecbf609f9';
   const wantHolderAddr = '0xD5B7FE9891E239C993590B218e02B7EEb7dDe684';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
@@ -80,7 +80,7 @@ describe('Vaults', function () {
 
     //get artifacts
     Vault = await ethers.getContractFactory('ReaperVaultv1_4');
-    Strategy = await ethers.getContractFactory('ReaperStrategySpookyWftmUnderlying');
+    Strategy = await ethers.getContractFactory('ReaperStrategySpookyUsdcOath');
     Want = await ethers.getContractFactory('@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20');
     const poolId = 0;
 
