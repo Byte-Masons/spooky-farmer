@@ -17,7 +17,8 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
 
     // 3rd-party contract addresses
     address public constant SPOOKY_ROUTER = address(0xF491e7B69E4244ad4002BC14e878a34207E38c29);
-    address public constant MASTER_CHEF = address(0x18b4f774fdC7BF685daeeF66c2990b1dDd9ea6aD);
+    address public constant OLD_MASTER_CHEF = address(0x18b4f774fdC7BF685daeeF66c2990b1dDd9ea6aD);
+    address public constant NEW_MASTER_CHEF = address(0x9C9C920E51778c4ABF727b8Bb223e78132F00aA4);
 
     /**
      * @dev Tokens Used:
@@ -81,8 +82,8 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
     function _deposit() internal override {
         uint256 wantBalance = IERC20Upgradeable(want).balanceOf(address(this));
         if (wantBalance != 0) {
-            IERC20Upgradeable(want).safeIncreaseAllowance(MASTER_CHEF, wantBalance);
-            IMasterChefV2(MASTER_CHEF).deposit(poolId, wantBalance);
+            IERC20Upgradeable(want).safeIncreaseAllowance(NEW_MASTER_CHEF, wantBalance);
+            IMasterChefV2(NEW_MASTER_CHEF).deposit(poolId, wantBalance);
         }
     }
 
@@ -92,7 +93,7 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
     function _withdraw(uint256 _amount) internal override {
         uint256 wantBal = IERC20Upgradeable(want).balanceOf(address(this));
         if (wantBal < _amount) {
-            IMasterChefV2(MASTER_CHEF).withdraw(poolId, _amount - wantBal);
+            IMasterChefV2(NEW_MASTER_CHEF).withdraw(poolId, _amount - wantBal);
         }
 
         IERC20Upgradeable(want).safeTransfer(vault, _amount);
@@ -113,9 +114,7 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
     }
 
     function _claimRewards() internal {
-        IMasterChefV2(MASTER_CHEF).deposit(poolId, 0); // deposit 0 to claim rewards
-        uint256 sdBalance = IERC20Upgradeable(SD).balanceOf(address(this));
-        uint256 booBalance = IERC20Upgradeable(BOO).balanceOf(address(this));
+        IMasterChefV2(NEW_MASTER_CHEF).deposit(poolId, 0); // deposit 0 to claim rewards
     }
 
     /**
@@ -130,9 +129,6 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
         _swap(IERC20Upgradeable(SD).balanceOf(address(this)), sdToWftmPath);
         wftmFee += ((wftm.balanceOf(address(this)) - startingWftmBal) * totalFee) / PERCENT_DIVISOR;
         startingWftmBal = wftm.balanceOf(address(this));
-
-        _swap(IERC20Upgradeable(BOO).balanceOf(address(this)), booToWftmPath);
-        wftmFee += ((wftm.balanceOf(address(this)) - startingWftmBal) * totalFee) / PERCENT_DIVISOR;
 
         if (wftmFee != 0) {
             uint256 callFeeToUser = (wftmFee * callFee) / PERCENT_DIVISOR;
@@ -189,7 +185,7 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
      *      It takes into account both the funds in hand, plus the funds in the MasterChef.
      */
     function balanceOf() public view override returns (uint256) {
-        (uint256 amount, ) = IMasterChefV2(MASTER_CHEF).userInfo(poolId, address(this));
+        (uint256 amount, ) = IMasterChefV2(NEW_MASTER_CHEF).userInfo(poolId, address(this));
         return amount + IERC20Upgradeable(want).balanceOf(address(this));
     }
 
@@ -198,19 +194,12 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
      *      Profit is denominated in WFTM, and takes fees into account.
      */
     function estimateHarvest() external view override returns (uint256 profit, uint256 callFeeToUser) {
-        IMasterChefV2 masterChef = IMasterChefV2(MASTER_CHEF);
+        IMasterChefV2 masterChef = IMasterChefV2(NEW_MASTER_CHEF);
         IDeusRewarder rewarder = IDeusRewarder(masterChef.rewarder(poolId));
 
-        // {BOO} reward
-        uint256 pendingReward = masterChef.pendingBOO(poolId, address(this));
-        uint256 totalRewards = pendingReward + IERC20Upgradeable(BOO).balanceOf(address(this));
-        if (totalRewards != 0) {
-            profit += IUniswapV2Router02(SPOOKY_ROUTER).getAmountsOut(totalRewards, booToWftmPath)[1];
-        }
-
         // {SD} reward
-        pendingReward = rewarder.pendingToken(poolId, address(this));
-        totalRewards = pendingReward + IERC20Upgradeable(SD).balanceOf(address(this));
+        uint256 pendingReward = rewarder.pendingToken(poolId, address(this));
+        uint256 totalRewards = pendingReward + IERC20Upgradeable(SD).balanceOf(address(this));
         if (totalRewards != 0) {
             profit += IUniswapV2Router02(SPOOKY_ROUTER).getAmountsOut(totalRewards, sdToWftmPath)[1];
         }
@@ -234,9 +223,9 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
         _performSwapsAndChargeFees();
         _addLiquidity();
 
-        (uint256 poolBal, ) = IMasterChefV2(MASTER_CHEF).userInfo(poolId, address(this));
+        (uint256 poolBal, ) = IMasterChefV2(NEW_MASTER_CHEF).userInfo(poolId, address(this));
         if (poolBal != 0) {
-            IMasterChefV2(MASTER_CHEF).withdraw(poolId, poolBal);
+            IMasterChefV2(NEW_MASTER_CHEF).withdraw(poolId, poolBal);
         }
 
         uint256 wantBalance = IERC20Upgradeable(want).balanceOf(address(this));
@@ -249,6 +238,24 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
      * Withdraws all funds leaving rewards behind.
      */
     function _reclaimWant() internal override {
-        IMasterChefV2(MASTER_CHEF).emergencyWithdraw(poolId, address(this));
+        IMasterChefV2(NEW_MASTER_CHEF).emergencyWithdraw(poolId, address(this));
+    }
+
+    function transferWantToNewMasterchef() external {
+        _onlyStrategistOrOwner();
+        uint256 _poolId = 3;
+
+        // Witdraw LP from old masterchef
+        (uint256 oldMasterChefBal,) = IMasterChefV2(OLD_MASTER_CHEF).userInfo(poolId, address(this));
+        IMasterChefV2(OLD_MASTER_CHEF).withdraw(poolId, oldMasterChefBal);
+
+        // Deposit into new masterchef
+        poolId = _poolId;
+        uint256 wantBalance = IERC20Upgradeable(want).balanceOf(address(this));
+        IERC20Upgradeable(want).safeIncreaseAllowance(NEW_MASTER_CHEF, wantBalance);
+        IMasterChefV2(NEW_MASTER_CHEF).deposit(poolId, wantBalance);
+        (uint256 newMasterChefBal,) = IMasterChefV2(NEW_MASTER_CHEF).userInfo(poolId, address(this));
+
+        require(newMasterChefBal >= oldMasterChefBal, "Funds not properly transferred");
     }
 }
