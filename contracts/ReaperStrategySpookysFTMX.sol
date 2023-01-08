@@ -55,6 +55,11 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
     uint256 public poolId;
 
     /**
+     * @dev Flag used to migrate from masterchef v2 to v3 only once
+     */
+     bool isMigrationDone = false;
+
+    /**
      * @dev Initializes the strategy. Sets parameters and saves routes.
      * @notice see documentation for each variable above its respective declaration.
      */
@@ -243,6 +248,7 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
 
     function transferWantToNewMasterchef() external {
         _onlyStrategistOrOwner();
+        require(!isMigrationDone, "Migration already done");
         uint256 _poolId = 3;
 
         // Witdraw LP from old masterchef
@@ -255,6 +261,8 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
         IERC20Upgradeable(want).safeIncreaseAllowance(NEW_MASTER_CHEF, wantBalance);
         IMasterChefV2(NEW_MASTER_CHEF).deposit(poolId, wantBalance);
         (uint256 newMasterChefBal,) = IMasterChefV2(NEW_MASTER_CHEF).userInfo(poolId, address(this));
+
+        isMigrationDone = true;
 
         require(newMasterChefBal >= oldMasterChefBal, "Funds not properly transferred");
     }
