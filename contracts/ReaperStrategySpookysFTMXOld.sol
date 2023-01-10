@@ -12,13 +12,12 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 /**
  * @dev Deposit SpookySwap LP tokens into MasterChef. Harvest BOO and SD rewards and recompound.
  */
-contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
+contract ReaperStrategySpookysFTMXOld is ReaperBaseStrategyv1_1 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // 3rd-party contract addresses
     address public constant SPOOKY_ROUTER = address(0xF491e7B69E4244ad4002BC14e878a34207E38c29);
-    address public constant OLD_MASTER_CHEF = address(0x18b4f774fdC7BF685daeeF66c2990b1dDd9ea6aD);
-    address public constant NEW_MASTER_CHEF = address(0x9C9C920E51778c4ABF727b8Bb223e78132F00aA4);
+    address public constant MASTER_CHEF = address(0x18b4f774fdC7BF685daeeF66c2990b1dDd9ea6aD);
 
     /**
      * @dev Tokens Used:
@@ -55,11 +54,6 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
     uint256 public poolId;
 
     /**
-     * @dev Flag used to migrate from masterchef v2 to v3 only once
-     */
-     bool public isMigrationDone;
-
-    /**
      * @dev Initializes the strategy. Sets parameters and saves routes.
      * @notice see documentation for each variable above its respective declaration.
      */
@@ -87,8 +81,8 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
     function _deposit() internal override {
         uint256 wantBalance = IERC20Upgradeable(want).balanceOf(address(this));
         if (wantBalance != 0) {
-            IERC20Upgradeable(want).safeIncreaseAllowance(NEW_MASTER_CHEF, wantBalance);
-            IMasterChefV2(NEW_MASTER_CHEF).deposit(poolId, wantBalance);
+            IERC20Upgradeable(want).safeIncreaseAllowance(MASTER_CHEF, wantBalance);
+            IMasterChefV2(MASTER_CHEF).deposit(poolId, wantBalance);
         }
     }
 
@@ -98,7 +92,7 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
     function _withdraw(uint256 _amount) internal override {
         uint256 wantBal = IERC20Upgradeable(want).balanceOf(address(this));
         if (wantBal < _amount) {
-            IMasterChefV2(NEW_MASTER_CHEF).withdraw(poolId, _amount - wantBal);
+            IMasterChefV2(MASTER_CHEF).withdraw(poolId, _amount - wantBal);
         }
 
         IERC20Upgradeable(want).safeTransfer(vault, _amount);
@@ -119,7 +113,9 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
     }
 
     function _claimRewards() internal {
-        IMasterChefV2(NEW_MASTER_CHEF).deposit(poolId, 0); // deposit 0 to claim rewards
+        IMasterChefV2(MASTER_CHEF).deposit(poolId, 0); // deposit 0 to claim rewards
+        uint256 sdBalance = IERC20Upgradeable(SD).balanceOf(address(this));
+        uint256 booBalance = IERC20Upgradeable(BOO).balanceOf(address(this));
     }
 
     /**
@@ -193,7 +189,7 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
      *      It takes into account both the funds in hand, plus the funds in the MasterChef.
      */
     function balanceOf() public view override returns (uint256) {
-        (uint256 amount, ) = IMasterChefV2(NEW_MASTER_CHEF).userInfo(poolId, address(this));
+        (uint256 amount, ) = IMasterChefV2(MASTER_CHEF).userInfo(poolId, address(this));
         return amount + IERC20Upgradeable(want).balanceOf(address(this));
     }
 
@@ -202,7 +198,7 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
      *      Profit is denominated in WFTM, and takes fees into account.
      */
     function estimateHarvest() external view override returns (uint256 profit, uint256 callFeeToUser) {
-        IMasterChefV2 masterChef = IMasterChefV2(NEW_MASTER_CHEF);
+        IMasterChefV2 masterChef = IMasterChefV2(MASTER_CHEF);
         IDeusRewarder rewarder = IDeusRewarder(masterChef.rewarder(poolId));
 
         // {BOO} reward
@@ -238,9 +234,9 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
         _performSwapsAndChargeFees();
         _addLiquidity();
 
-        (uint256 poolBal, ) = IMasterChefV2(NEW_MASTER_CHEF).userInfo(poolId, address(this));
+        (uint256 poolBal, ) = IMasterChefV2(MASTER_CHEF).userInfo(poolId, address(this));
         if (poolBal != 0) {
-            IMasterChefV2(NEW_MASTER_CHEF).withdraw(poolId, poolBal);
+            IMasterChefV2(MASTER_CHEF).withdraw(poolId, poolBal);
         }
 
         uint256 wantBalance = IERC20Upgradeable(want).balanceOf(address(this));
@@ -253,25 +249,6 @@ contract ReaperStrategySpookysFTMX is ReaperBaseStrategyv1_1 {
      * Withdraws all funds leaving rewards behind.
      */
     function _reclaimWant() internal override {
-        IMasterChefV2(NEW_MASTER_CHEF).emergencyWithdraw(poolId, address(this));
-    }
-
-    function transferWantToNewMasterchef() external {
-        _onlyStrategistOrOwner();
-        require(!isMigrationDone, "Migration already done");
-        uint256 _poolId = 3;
-
-        // Witdraw LP from old masterchef
-        (uint256 oldMasterChefBal,) = IMasterChefV2(OLD_MASTER_CHEF).userInfo(poolId, address(this));
-        IMasterChefV2(OLD_MASTER_CHEF).withdraw(poolId, oldMasterChefBal);
-
-        // Deposit into new masterchef
-        poolId = _poolId;
-        _deposit();
-        (uint256 newMasterChefBal,) = IMasterChefV2(NEW_MASTER_CHEF).userInfo(poolId, address(this));
-
-        isMigrationDone = true;
-
-        require(newMasterChefBal >= oldMasterChefBal, "Funds not properly transferred");
+        IMasterChefV2(MASTER_CHEF).emergencyWithdraw(poolId, address(this));
     }
 }

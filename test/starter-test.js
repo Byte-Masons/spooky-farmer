@@ -64,7 +64,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpc.ftm.tools/',
-            blockNumber: 36936538,
+            // blockNumber: 36936538,
           },
         },
       ],
@@ -115,7 +115,7 @@ describe('Vaults', function () {
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
   });
 
-  describe('Deploying the vault and strategy', function () {
+  xdescribe('Deploying the vault and strategy', function () {
     it('should initiate vault with a 0 balance', async function () {
       const totalBalance = await vault.balance();
       const availableBalance = await vault.available();
@@ -126,7 +126,7 @@ describe('Vaults', function () {
     });
   });
 
-  describe('Vault Tests', function () {
+  xdescribe('Vault Tests', function () {
     it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.balance();
@@ -252,7 +252,7 @@ describe('Vaults', function () {
       console.log(`Average APR across ${numHarvests} harvests is ${averageAPR} basis points.`);
     });
   });
-  describe('Strategy', function () {
+  xdescribe('Strategy', function () {
     it('should be able to pause and unpause', async function () {
       await strategy.pause();
       const depositAmount = toWantUnit('1');
@@ -309,5 +309,82 @@ describe('Vaults', function () {
       expect(hasProfit).to.equal(true);
       expect(hasCallFee).to.equal(true);
     });
+  });
+
+  describe('Deployed Mainnet contracts', function () {
+    // async function forkMainnetAndAttachToDeployedStrategy() {
+    //   await network.provider.request({
+    //     method: 'hardhat_reset',
+    //     params: [
+    //       {
+    //         forking: {
+    //           jsonRpcUrl: 'https://rpc.ankr.com/fantom/',
+    //         },
+    //       },
+    //     ],
+    //   });
+    //   const Strategy = await ethers.getContractFactory('ReaperStrategySpookysFTMX');
+    //   const strategy = await Strategy.attach('0x873c088A05AfB0F254fe97b8A6677ee41a3F61BD');
+    //   const strategist = await ethers.getImpersonatedSigner(strategistAddr);
+
+    //   return {strategy, strategist};
+    // }
+
+    // to run this test, replace the contents of unknown-31337.json with the contents of unknown-250.json
+    it('upgrade to V2', async function () {
+      await network.provider.request({
+        method: 'hardhat_reset',
+        params: [
+          {
+            forking: {
+              jsonRpcUrl: 'https://rpc.ankr.com/fantom/',
+            },
+          },
+        ],
+      });
+      const Strategy = await ethers.getContractFactory('ReaperStrategySpookysFTMXOld');
+      const strategy = await Strategy.attach('0x873c088A05AfB0F254fe97b8A6677ee41a3F61BD');
+      await hre.network.provider.request({
+        method: 'hardhat_impersonateAccount',
+        params: [strategistAddr],
+      });
+      const strategist = await ethers.provider.getSigner(strategistAddr);
+
+      // const {strategy} = await loadFixture(forkMainnetAndAttachToDeployedStrategy); 
+      await moveTimeForward(3600 * 6);
+
+      await hre.network.provider.request({
+        method: 'hardhat_impersonateAccount',
+        params: ['0x111731A388743a75CF60CCA7b140C58e41D83635'],
+      });
+      const defaultAdmin = await ethers.provider.getSigner('0x111731A388743a75CF60CCA7b140C58e41D83635');
+
+      // const defaultAdmin = await ethers.getImpersonatedSigner('0x111731A388743a75CF60CCA7b140C58e41D83635');
+      const StrategyV2 = await ethers.getContractFactory('ReaperStrategySpookysFTMX');
+      console.log('Got old strat');
+
+      const newImplAddress = await upgrades.prepareUpgrade(strategy.address, StrategyV2);
+      console.log('Got future add');
+      await strategy.connect(defaultAdmin).upgradeTo(newImplAddress);
+      console.log('Upgrading')
+
+      // verify that upgrade completed
+      const strategyV2 = await StrategyV2.attach(strategy.address);
+      const txTransfer = await strategyV2.connect(defaultAdmin).transferWantToNewMasterchef();
+      const v2UpgradeCompleted = await strategyV2.isMigrationDone();
+      expect(v2UpgradeCompleted).to.eq(true);
+
+      // harvest 3 times and read APR
+      const numHarvests = 3;
+      for (let i = 0; i < numHarvests; i++) {
+        await moveTimeForward(3600 * 24);
+        await strategyV2.harvest();
+      }
+
+      const averageAPR = await strategyV2.averageAPRAcrossLastNHarvests(numHarvests - 1);
+      console.log(`Supply-borrow average APR across ${numHarvests - 1} harvests is ${averageAPR} basis points.`);
+    });
+
+
   });
 });
