@@ -361,16 +361,12 @@ describe('Vaults', function () {
 
       // const defaultAdmin = await ethers.getImpersonatedSigner('0x111731A388743a75CF60CCA7b140C58e41D83635');
       const StrategyV2 = await ethers.getContractFactory('ReaperStrategySpookysFTMX');
-      console.log('Got old strat');
 
       const newImplAddress = await upgrades.prepareUpgrade(strategy.address, StrategyV2);
-      console.log('Got future add');
-      await strategy.connect(defaultAdmin).upgradeTo(newImplAddress);
-      console.log('Upgrading')
+      await strategy.connect(defaultAdmin).upgradeToAndCall(newImplAddress,'0xedb0a2ea'); // Call transferWantToNewMasterchef()
 
       // verify that upgrade completed
       const strategyV2 = await StrategyV2.attach(strategy.address);
-      const txTransfer = await strategyV2.connect(defaultAdmin).transferWantToNewMasterchef();
       const v2UpgradeCompleted = await strategyV2.isMigrationDone();
       expect(v2UpgradeCompleted).to.eq(true);
 
